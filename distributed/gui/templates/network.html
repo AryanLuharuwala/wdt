@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Network - WDT Distributed{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Network Files</h2>
+    <button class="btn btn-outline" onclick="location.reload()">&#8635; Refresh</button>
+</div>
+
+{% if network_files %}
+<div class="card">
+    <div class="card-body no-padding">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>Size</th>
+                    <th>Shards</th>
+                    <th>Owner</th>
+                    <th>Holders</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in network_files %}
+                <tr>
+                    <td class="filename">
+                        <span class="file-icon">{% if f.have_locally %}&#9989;{% else %}&#127760;{% endif %}</span>
+                        {{ f.filename }}
+                    </td>
+                    <td>{{ f.total_size|filesizeformat }}</td>
+                    <td>{{ f.shard_count }}</td>
+                    <td>
+                        <span class="peer-label" title="{{ f.owner }}">
+                            {{ f.owner[:12] }}...
+                        </span>
+                    </td>
+                    <td>{{ f.holders|length }} peer(s)</td>
+                    <td class="actions">
+                        {% if f.have_locally %}
+                        <span class="badge badge-success">Downloaded</span>
+                        {% else %}
+                        <form action="{{ url_for('download_file', file_id=f.file_id) }}" method="POST" class="inline-form">
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                &#8595; Download
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">&#127760;</div>
+    <h3>No files on the network</h3>
+    <p>Files shared by other peers will appear here. Make sure you are connected to a discovery server.</p>
+</div>
+{% endif %}
+{% endblock %}

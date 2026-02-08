@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}WDT Distributed{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <h1 class="logo">WDT</h1>
+            <span class="logo-sub">Distributed File Sharing</span>
+        </div>
+        <ul class="nav-links">
+            <li class="{{ 'active' if request.endpoint == 'dashboard' }}">
+                <a href="{{ url_for('dashboard') }}">
+                    <span class="nav-icon">&#9635;</span> Dashboard
+                </a>
+            </li>
+            <li class="{{ 'active' if request.endpoint == 'files_page' }}">
+                <a href="{{ url_for('files_page') }}">
+                    <span class="nav-icon">&#128194;</span> My Files
+                </a>
+            </li>
+            <li class="{{ 'active' if request.endpoint == 'network_page' }}">
+                <a href="{{ url_for('network_page') }}">
+                    <span class="nav-icon">&#127760;</span> Network
+                </a>
+            </li>
+            <li class="{{ 'active' if request.endpoint == 'peers_page' }}">
+                <a href="{{ url_for('peers_page') }}">
+                    <span class="nav-icon">&#128101;</span> Peers
+                </a>
+            </li>
+            <li class="{{ 'active' if request.endpoint == 'transfers_page' }}">
+                <a href="{{ url_for('transfers_page') }}">
+                    <span class="nav-icon">&#8644;</span> Transfers
+                </a>
+            </li>
+        </ul>
+        <div class="sidebar-footer">
+            <div class="peer-badge">
+                <span class="status-dot online"></span>
+                <span class="peer-id" title="{{ stats.peer_id if stats is defined else '' }}">
+                    {{ (stats.peer_id if stats is defined else 'offline')[:16] }}
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                {{ message }}
+                <button class="alert-close" onclick="this.parentElement.remove()">&times;</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

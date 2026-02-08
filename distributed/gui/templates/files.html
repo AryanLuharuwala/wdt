@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}My Files - WDT Distributed{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>My Files</h2>
+    <form action="{{ url_for('upload_file') }}" method="POST" enctype="multipart/form-data" class="inline-form">
+        <input type="file" name="file" id="quickFile" class="file-input" onchange="this.form.submit()">
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('quickFile').click()">
+            + Share File
+        </button>
+    </form>
+</div>
+
+{% if local_files %}
+<div class="card">
+    <div class="card-body no-padding">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>Size</th>
+                    <th>Shards</th>
+                    <th>Encryption</th>
+                    <th>Shared</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in local_files %}
+                <tr>
+                    <td class="filename">
+                        <span class="file-icon">&#128196;</span>
+                        {{ f.filename }}
+                    </td>
+                    <td>{{ f.total_size|filesizeformat }}</td>
+                    <td>{{ f.shard_count }}</td>
+                    <td>
+                        {% if f.encryption_key_hex %}
+                        <span class="badge badge-success">AES-256</span>
+                        {% else %}
+                        <span class="badge badge-warning">None</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ f.created_at|timeago }}</td>
+                    <td class="actions">
+                        <a href="{{ url_for('retrieve_file', file_id=f.file_id) }}" class="btn btn-sm btn-outline" title="Download">
+                            &#8595; Save
+                        </a>
+                        <form action="{{ url_for('delete_file', file_id=f.file_id) }}" method="POST" class="inline-form"
+                              onsubmit="return confirm('Delete this file and all its shards?')">
+                            <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                &#10005; Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">&#128194;</div>
+    <h3>No files shared yet</h3>
+    <p>Click "Share File" to start sharing files with the network.</p>
+</div>
+{% endif %}
+{% endblock %}
