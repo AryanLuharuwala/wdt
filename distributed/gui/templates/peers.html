@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Peers - WDT Distributed{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Connected Peers</h2>
+    <button class="btn btn-outline" onclick="location.reload()">&#8635; Refresh</button>
+</div>
+
+{% if peers %}
+<div class="peers-grid">
+    {% for p in peers %}
+    <div class="peer-card {{ 'self' if p.peer_id == my_peer_id }}">
+        <div class="peer-card-header">
+            <span class="status-dot {{ 'online' if p.is_alive else 'offline' }}"></span>
+            <h4>{{ p.peer_id[:16] }}{% if p.peer_id|length > 16 %}...{% endif %}</h4>
+            {% if p.peer_id == my_peer_id %}<span class="badge badge-info">You</span>{% endif %}
+        </div>
+        <div class="peer-card-body">
+            <div class="peer-detail">
+                <span class="label">Address</span>
+                <span class="value">{{ p.host }}:{{ p.port }}</span>
+            </div>
+            <div class="peer-detail">
+                <span class="label">Files</span>
+                <span class="value">{{ p.file_count }}</span>
+            </div>
+            <div class="peer-detail">
+                <span class="label">Shards</span>
+                <span class="value">{{ p.shard_count }}</span>
+            </div>
+            <div class="peer-detail">
+                <span class="label">Capacity</span>
+                <span class="value">{{ p.capacity_bytes|filesizeformat }}</span>
+            </div>
+            <div class="peer-detail">
+                <span class="label">Last Seen</span>
+                <span class="value">{{ p.last_heartbeat|timeago }}</span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">&#128101;</div>
+    <h3>No peers connected</h3>
+    <p>Other peers will appear here once they connect to the same discovery server.</p>
+</div>
+{% endif %}
+{% endblock %}

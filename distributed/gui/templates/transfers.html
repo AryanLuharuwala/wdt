@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Transfers - WDT Distributed{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Transfers</h2>
+</div>
+
+{% if transfers %}
+<div class="card">
+    <div class="card-body no-padding">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>File</th>
+                    <th>Size</th>
+                    <th>Shards</th>
+                    <th>Progress</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                </tr>
+            </thead>
+            <tbody id="transfersBody">
+                {% for t in transfers %}
+                <tr data-file-id="{{ t.file_id }}">
+                    <td class="filename">
+                        <span class="file-icon">&#128196;</span>
+                        {{ t.filename }}
+                    </td>
+                    <td>{{ t.total_bytes|filesizeformat }}</td>
+                    <td>{{ t.completed_shards }} / {{ t.total_shards }}</td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill {{ 'complete' if t.status == 'complete' else 'error' if t.status == 'failed' else '' }}"
+                                 style="width: {{ t.progress_pct }}%"></div>
+                            <span class="progress-text">{{ t.progress_pct }}%</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ 'success' if t.status == 'complete' else 'warning' if t.status == 'downloading' else 'danger' if t.status == 'failed' else 'info' }}">
+                            {{ t.status }}
+                        </span>
+                        {% if t.error %}
+                        <span class="error-text" title="{{ t.error }}">{{ t.error[:30] }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ t.started_at|timeago }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">&#8644;</div>
+    <h3>No transfers yet</h3>
+    <p>Download files from the Network page to see transfer progress here.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh transfers every 2 seconds if any are active
+(function() {
+    const hasActive = document.querySelector('.badge-warning');
+    if (hasActive) {
+        setInterval(function() {
+            fetch('/api/transfers')
+                .then(r => r.json())
+                .then(data => {
+                    const active = data.transfers.some(t => t.status === 'downloading');
+                    if (!active && hasActive) {
+                        location.reload();
+                    }
+                    data.transfers.forEach(t => {
+                        const row = document.querySelector(`tr[data-file-id="${t.file_id}"]`);
+                        if (row) {
+                            const fill = row.querySelector('.progress-fill');
+                            const text = row.querySelector('.progress-text');
+                            const badge = row.querySelector('.badge');
+                            const shards = row.querySelectorAll('td')[2];
+                            if (fill) fill.style.width = t.progress_pct + '%';
+                            if (text) text.textContent = t.progress_pct + '%';
+                            if (shards) shards.textContent = t.completed_shards + ' / ' + t.total_shards;
+                            if (badge) {
+                                badge.textContent = t.status;
+                                badge.className = 'badge badge-' +
+                                    (t.status === 'complete' ? 'success' :
+                                     t.status === 'downloading' ? 'warning' :
+                                     t.status === 'failed' ? 'danger' : 'info');
+                            }
+                        }
+                    });
+                })
+                .catch(() => {});
+        }, 2000);
+    }
+})();
+</script>
+{% endblock %}
