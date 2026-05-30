@@ -88,6 +88,8 @@ util/EncryptionUtils.cpp
 util/DirectorySourceQueue.cpp
 ErrorCodes.cpp
 util/FileByteSource.cpp
+buffer/InMemoryByteSource.cpp
+buffer/WdtBuffer.cpp
 util/FileCreator.cpp
 Protocol.cpp
 WdtThread.cpp
@@ -273,6 +275,11 @@ endforeach()
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/util" DESTINATION include/wdt
         FILES_MATCHING PATTERN "*.h")
 
+# Install the buffer library headers with directory structure maintained
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/buffer" DESTINATION include/wdt
+        FILES_MATCHING PATTERN "*.h")
+
 # wcp script
 install(PROGRAMS test/wcp.sh DESTINATION bin RENAME wcp)
 
@@ -395,6 +402,10 @@ if (BUILD_TESTING)
   add_executable(wdt_fd_test  test/FdTest.cpp)
   target_link_libraries(wdt_fd_test wdt4tests)
   add_test(NAME WdtFdTests COMMAND wdt_fd_test)
+
+  add_executable(wdt_buffer_test  buffer/test/WdtBufferTest.cpp)
+  target_link_libraries(wdt_buffer_test wdt4tests)
+  add_test(NAME WdtBufferTests COMMAND wdt_buffer_test)
 
   add_executable(encryption_test  test/EncryptionTest.cpp)
   target_link_libraries(encryption_test wdt4tests)

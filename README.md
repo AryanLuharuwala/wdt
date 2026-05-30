@@ -109,6 +109,9 @@ Main WDT classes and Wdt command line source, CMakeLists.txt
 * util/
 Utilities used for implementing the main objects
 
+* buffer/
+In-memory buffer library API (@see "Buffer library API" below)
+
 * test/
 Tests files and scripts
 
@@ -243,6 +246,55 @@ Header file for error codes
 * Reporting.{h|cpp}
 
 Class representing transfer stats and reports
+
+## Buffer library API
+
+In addition to the process/file oriented command line tool, wdt can be used as
+a plain library to move a contiguous in-memory buffer from one host to another
+without spawning any process and without the caller dealing with files. This
+lives under `buffer/` and is built on top of the in-process library API
+(`Sender` / `Receiver` / `WdtTransferRequest`).
+
+* buffer/WdtBuffer.{h|cpp}
+
+The public, documented entry point. `BufferReceiver` starts listening (ports
+are auto-assigned) and exposes a wdt connection url; `BufferSender::send()`
+takes that url (or a `WdtTransferRequest`) plus a `const void* buf, size_t len`
+and transmits it. `BufferReceiver::finish()` blocks until the transfer is done
+and copies the received bytes into a caller `std::string` or a fixed buffer.
+
+* buffer/InMemoryByteSource.{h|cpp}
+
+A `ByteSource` (@see ByteSource.h) that streams from a caller-owned buffer
+instead of a file, so the sender never reads from disk.
+
+The send side streams straight from memory. On the receive side the existing
+wdt receiver is reused unchanged; the bytes are staged in a RAM-backed tmpfs
+scratch directory (e.g. under `/dev/shm`) and copied into the caller buffer,
+then the scratch entry is removed, so nothing is persisted to physical storage.
+
+Minimal loopback example:
+
+```cpp
+#include <wdt/Wdt.h>
+#include <wdt/buffer/WdtBuffer.h>
+using namespace facebook::wdt;
+
+Wdt::initializeWdt("wdt_buffer");
+
+BufferReceiver receiver;
+receiver.start();                                   // listen on localhost
+std::string url = receiver.getConnectionUrl();      // hand this to the sender
+
+const char msg[] = "hello wdt";
+BufferSender::send(url, msg, sizeof(msg));          // send a buffer
+
+std::string out;
+receiver.finish(out);                               // out == the sent bytes
+```
+
+See `buffer/test/WdtBufferTest.cpp` for a runnable loopback test that asserts
+the received bytes match what was sent.
 
 ## Future development/extensibility
 
