@@ -17,8 +17,14 @@ namespace wdt {
 
 /**
  * ByteSource that streams data from a contiguous, caller-owned in-memory
- * buffer instead of a file. This lets the wdt library send a buffer without
- * ever touching the filesystem (@see wdt/buffer/WdtBuffer.h).
+ * buffer instead of a file, so wdt could send a buffer without ever touching
+ * the filesystem.
+ *
+ * Status: this class is provided and unit-tested, but it is NOT yet wired into
+ * the live BufferSender send path. That path currently copies the caller buffer
+ * into a memfd_create(2) fd and ships it via wdt's existing fd read path;
+ * switching to InMemoryByteSource would require making the Sender accept a
+ * custom SourceQueue and is deliberately deferred (@see wdt/buffer/WdtBuffer.h).
  *
  * The buffer must outlive the InMemoryByteSource. No copy of the buffer is
  * made; read() hands wdt slices of the caller's memory directly.

@@ -251,8 +251,8 @@ Class representing transfer stats and reports
 
 In addition to the process/file oriented command line tool, wdt can be used as
 a plain library to move a contiguous in-memory buffer from one host to another
-without spawning any process and without the caller dealing with files. This
-lives under `buffer/` and is built on top of the in-process library API
+without spawning any process and without ever persisting to durable storage.
+This lives under `buffer/` and is built on top of the in-process library API
 (`Sender` / `Receiver` / `WdtTransferRequest`).
 
 * buffer/WdtBuffer.{h|cpp}
@@ -265,13 +265,29 @@ and copies the received bytes into a caller `std::string` or a fixed buffer.
 
 * buffer/InMemoryByteSource.{h|cpp}
 
-A `ByteSource` (@see ByteSource.h) that streams from a caller-owned buffer
-instead of a file, so the sender never reads from disk.
+A `ByteSource` (@see ByteSource.h) that streams directly from a caller-owned
+buffer instead of a file. It is provided and unit-tested, but it is **not yet
+wired into the live send path** (see below). Wiring it in would require making
+the `Sender` accept a custom `SourceQueue`, which is deliberately deferred; the
+loopback test in `buffer/test/WdtBufferTest.cpp` exercises it directly.
 
-The send side streams straight from memory. On the receive side the existing
-wdt receiver is reused unchanged; the bytes are staged in a RAM-backed tmpfs
-scratch directory (e.g. under `/dev/shm`) and copied into the caller buffer,
-then the scratch entry is removed, so nothing is persisted to physical storage.
+How the send path actually works: `BufferSender::send()` copies the caller's
+buffer into an anonymous, in-memory file created with `memfd_create(2)` and
+hands that fd to the in-process `Sender`, which transmits it over wdt's existing
+fd read path (`FileByteSource` reading from the memfd). No on-disk file is
+created and no subprocess is spawned.
+
+On the receive side the existing wdt receiver is reused unchanged: incoming
+bytes are staged to a real file (`$scratchDir/wdt_buffer`) in a RAM-backed
+tmpfs scratch directory (under `/dev/shm`) via wdt's `FileWriter`, then read
+back into the caller buffer and the scratch entry is unlinked. The staged data
+is a real filesystem file, but because it lives on tmpfs it is RAM-backed and
+never touches a physical disk -- nothing is persisted to durable storage.
+
+Portability: this implementation is currently **Linux-only**. The send path
+needs `memfd_create(2)` (Linux >= 3.17, glibc >= 2.27) and the receive path
+requires a tmpfs mounted at `/dev/shm`. macOS (which upstream wdt CI targets) is
+not yet supported; a portable fallback is future work.
 
 Minimal loopback example:
 

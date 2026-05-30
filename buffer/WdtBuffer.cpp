@@ -73,9 +73,11 @@ ErrorCode BufferSender::send(const WdtTransferRequest& connectionRequest,
   if (fd < 0) {
     return MEMORY_ALLOCATION_ERROR;
   }
-  // Stream the in-memory fd through the in-process sender. wdt reads directly
-  // from the fd (@see InMemoryByteSource / FileByteSource fd path), so nothing
-  // is read from disk and no process is spawned.
+  // Transmit the in-memory (memfd) fd through the in-process sender. wdt reads
+  // from the fd over its existing FileByteSource fd path, so nothing is read
+  // from disk and no process is spawned. (InMemoryByteSource is NOT used here:
+  // wiring it in would require a custom SourceQueue and is deferred -- @see
+  // wdt/buffer/WdtBuffer.h for the full mechanism + portability notes.)
   WdtTransferRequest req = connectionRequest;
   req.fileInfo.clear();
   req.fileInfo.emplace_back(fd, static_cast<int64_t>(len), kBufferName);

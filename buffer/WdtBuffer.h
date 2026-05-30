@@ -23,20 +23,37 @@ namespace wdt {
  *
  * It is built entirely on top of the in-process wdt library API
  * (facebook::wdt::Sender / Receiver / WdtTransferRequest): no `wdt` binary is
- * spawned and the caller never has to deal with files. A caller hands a
+ * spawned and nothing is ever persisted to durable storage. A caller hands a
  * contiguous buffer to BufferSender::send() and the matching bytes are
  * delivered into a buffer on the BufferReceiver side.
  *
- * Send side streams from memory via InMemoryByteSource (@see
- * wdt/buffer/InMemoryByteSource.h), so the sender never reads from disk.
+ * Send side: BufferSender::send() copies the caller's buffer into an anonymous,
+ * in-memory file created with memfd_create(2) and hands that fd to wdt's
+ * in-process Sender. wdt then transmits it over its existing fd read path
+ * (FileByteSource reading from the memfd); no on-disk file is created and no
+ * subprocess is spawned. (Note: this does NOT use InMemoryByteSource on the
+ * live send path -- see the portability/status note below.)
  *
- * Receive side reuses wdt's existing receiver, which writes blocks through a
- * Writer. To deliver into a caller buffer without persisting to physical
- * storage, the receiver stages the transfer in a RAM-backed scratch directory
- * (tmpfs, e.g. under /dev/shm) and copies the result into the caller buffer.
- * The scratch entry is removed as soon as the transfer completes. The on-disk
- * wdt receiver internals are left untouched so this stays a cheap, non-invasive
- * library layer.
+ * Receive side reuses wdt's existing Receiver, which writes blocks through a
+ * FileWriter. To deliver into a caller buffer without persisting to durable
+ * storage, the receiver stages the incoming bytes to a RAM-backed scratch file
+ * ($scratchDir/wdt_buffer) in a tmpfs scratch directory (under /dev/shm), then
+ * reads that file back into the caller's buffer and unlinks it once the
+ * transfer completes. The staged data is a real filesystem file going through
+ * wdt's FileWriter machinery, but because it lives on tmpfs it is RAM-backed
+ * and never touches a physical disk. The on-disk wdt receiver internals are
+ * left untouched so this stays a cheap, non-invasive library layer.
+ *
+ * InMemoryByteSource (@see wdt/buffer/InMemoryByteSource.h) is provided and
+ * unit-tested as a ByteSource that streams directly from a caller-owned buffer,
+ * but it is NOT yet wired into the live send path above. Wiring it in would
+ * require making the Sender accept a custom SourceQueue, which is deliberately
+ * deferred; until then the memfd approach is used instead.
+ *
+ * Portability: this implementation is currently Linux-only. The send path needs
+ * memfd_create(2) (Linux >= 3.17, glibc >= 2.27) and the receive path requires
+ * a tmpfs mounted at /dev/shm. macOS (which upstream wdt CI targets) is not yet
+ * supported; a portable fallback is future work.
  *
  * Example (loopback):
  * @code
