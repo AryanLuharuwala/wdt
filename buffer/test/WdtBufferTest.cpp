@@ -17,16 +17,26 @@
 namespace facebook {
 namespace wdt {
 
+/// How the sender is told where to connect: either via the connection url
+/// (genWdtUrlWithSecret, which omits the source dir) or via the in-memory
+/// connection request object (which carries every field wdt needs).
+enum class Handoff { Url, Request };
+
 /// Loopback: send a buffer to a localhost receiver and assert bytes match.
-void loopback(const std::string& contents) {
+void loopback(const std::string& contents, Handoff handoff = Handoff::Url) {
   BufferReceiver receiver;
   ASSERT_EQ(OK, receiver.start(/* numPorts */ 3));
 
-  const std::string url = receiver.getConnectionUrl();
-  ASSERT_FALSE(url.empty());
-  WLOG(INFO) << "buffer receiver listening at " << url;
-
-  ASSERT_EQ(OK, BufferSender::send(url, contents.data(), contents.size()));
+  if (handoff == Handoff::Url) {
+    const std::string url = receiver.getConnectionUrl();
+    ASSERT_FALSE(url.empty());
+    WLOG(INFO) << "buffer receiver listening at " << url;
+    ASSERT_EQ(OK, BufferSender::send(url, contents.data(), contents.size()));
+  } else {
+    const WdtTransferRequest& conn = receiver.getConnectionRequest();
+    ASSERT_EQ(OK, conn.errorCode);
+    ASSERT_EQ(OK, BufferSender::send(conn, contents.data(), contents.size()));
+  }
 
   std::string received;
   ASSERT_EQ(OK, receiver.finish(received));
@@ -49,6 +59,12 @@ TEST(WdtBuffer, LargeBuffer) {
     contents.push_back(static_cast<char>('a' + (i % 26)));
   }
   loopback(contents);
+}
+
+/// Same round-trip but handing the sender the in-memory connection request
+/// object instead of the url string.
+TEST(WdtBuffer, RequestObjectHandoff) {
+  loopback("sent via connection request object", Handoff::Request);
 }
 
 /// Directly exercise the in-memory ByteSource: it should hand out exactly the

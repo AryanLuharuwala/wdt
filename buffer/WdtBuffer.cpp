@@ -82,6 +82,16 @@ ErrorCode BufferSender::send(const WdtTransferRequest& connectionRequest,
   req.fileInfo.clear();
   req.fileInfo.emplace_back(fd, static_cast<int64_t>(len), kBufferName);
   req.disableDirectoryTraversal = true;
+  // wdt validates that a sender request has a non-empty source directory
+  // (@see WdtBase::validateTransferRequest). The receiver's connection url
+  // (genWdtUrlWithSecret) intentionally omits the dir param, so a request
+  // parsed from that url arrives here with an empty directory and would be
+  // rejected as INVALID_REQUEST. We send a memfd via explicit fileInfo and
+  // disableDirectoryTraversal, so the root dir is never traversed or used to
+  // open a file -- it just has to be non-empty to pass validation.
+  if (req.directory.empty()) {
+    req.directory = kScratchRoot;
+  }
 
   Sender sender(req);
   WdtTransferRequest processed = sender.init();
